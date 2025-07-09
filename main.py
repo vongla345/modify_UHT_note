@@ -1,15 +1,16 @@
 import streamlit as st
 import fitz  # PyMuPDF
+import io
 
 st.title("Change Outbound Warehouse")
 
 
-def insert_patch_all_pages(pdf_path, output_path, patch_path, pixel_coords, dpi=300, pages=None):
+def insert_patch_all_pages(pdf_bytes, output_path, patch_path, pixel_coords, dpi=300, pages=None):
     """
     Insert an image patch into all pages (or specified pages) of a PDF.
     
     Args:
-        pdf_path: Input PDF file path
+        pdf_bytes: PDF file as bytes
         output_path: Output PDF file path
         patch_path: Image patch file path
         pixel_coords: Tuple of (x0, x1, top, bottom) in pixel coordinates
@@ -27,8 +28,8 @@ def insert_patch_all_pages(pdf_path, output_path, patch_path, pixel_coords, dpi=
     
     rect = fitz.Rect(x0_pt, top_pt, x1_pt, bottom_pt)
     
-    # Open PDF
-    doc = fitz.open(pdf_path)
+    # Open PDF from bytes
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
     
     # Determine which pages to process
     if pages is None:
@@ -50,29 +51,35 @@ def insert_patch_all_pages(pdf_path, output_path, patch_path, pixel_coords, dpi=
             page.insert_image(rect, filename=patch_path)
             
             processed_count += 1
-            print(f"   ✓ Processed page {page_num + 1}")
     
-    # Save the modified PDF
+    # Return the modified document
     return doc
 
-pdf_path = st.file_uploader("Upload PDF file", type=["pdf"])
 
-if pdf_path:
-    # Example: Process all pages
-    patch_path = "kho_hiep_phuoc_patch.png"
+raido_button = st.radio("Select patch", ["Phiếu giao hàng thu tiền", 
+                                        "Phiếu xuất kho"])
+
+if raido_button == "Phiếu giao hàng thu tiền":
+    patch_path = "kho_hiep_phuoc_delivery_note.png"
     pixel_coords = (1330, 1670, 1370, 1440)
-    
-    output_path = f"{pdf_path.name}_updated.pdf"
+elif raido_button == "Phiếu xuất kho":
+    patch_path = "kho_hiep_phuoc_material_document.png"
+    pixel_coords = (3570, 4100, 1030, 1100)
 
-    print("Processing all pages...")
-    doc = insert_patch_all_pages(pdf_path, output_path, patch_path, pixel_coords)
-    import io
-    pdf_bytes = io.BytesIO()
-    doc.save(pdf_bytes)
-    pdf_bytes.seek(0)
+uploaded_file = st.file_uploader("Tải file pdf", type=["pdf"])
+
+if uploaded_file:
+    # Read the uploaded file into bytes
+    pdf_bytes = uploaded_file.read()
+    output_path = f"{uploaded_file.name}_updated.pdf"
+
+    doc = insert_patch_all_pages(pdf_bytes, output_path, patch_path, pixel_coords)
+    pdf_bytes_output = io.BytesIO()
+    doc.save(pdf_bytes_output)
+    pdf_bytes_output.seek(0)
     st.download_button(
         label="Download PDF",
-        data=pdf_bytes,
+        data=pdf_bytes_output,
         file_name=output_path,
         mime="application/pdf"
     )
