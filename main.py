@@ -1,67 +1,29 @@
-import streamlit as st
-import fitz  # PyMuPDF
 import io
+import os
+import fitz
+from datetime import datetime
+import streamlit as st
+from utils import insert_patch_all_pages, create_text
 
-st.title("Change Outbound Warehouse")
-
-
-def insert_patch_all_pages(pdf_bytes, output_path, patch_path, pixel_coords, dpi=300, pages=None):
-    """
-    Insert an image patch into all pages (or specified pages) of a PDF.
-    
-    Args:
-        pdf_bytes: PDF file as bytes
-        output_path: Output PDF file path
-        patch_path: Image patch file path
-        pixel_coords: Tuple of (x0, x1, top, bottom) in pixel coordinates
-        dpi: DPI used when extracting the image (default 300)
-        pages: List of page numbers to process (0-based). If None, process all pages.
-    """
-    # Unpack and convert coordinates
-    x0_px, x1_px, top_px, bottom_px = pixel_coords
-    scale_factor = 72.0 / dpi
-    
-    x0_pt = x0_px * scale_factor
-    x1_pt = x1_px * scale_factor
-    top_pt = top_px * scale_factor
-    bottom_pt = bottom_px * scale_factor
-    
-    rect = fitz.Rect(x0_pt, top_pt, x1_pt, bottom_pt)
-    
-    # Open PDF from bytes
-    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    
-    # Determine which pages to process
-    if pages is None:
-        pages_to_process = range(len(doc))
-    else:
-        pages_to_process = pages
-    
-    processed_count = 0
-    
-    # Process each page
-    for page_num in pages_to_process:
-        if page_num < len(doc):
-            page = doc[page_num]
-            
-            # Draw white rectangle to cover existing text
-            page.draw_rect(rect, color=(1, 1, 1), fill=(1, 1, 1))
-            
-            # Insert the image patch
-            page.insert_image(rect, filename=patch_path)
-            
-            processed_count += 1
-    
-    # Return the modified document
-    return doc
+st.title("Change Ticket Information")
 
 
-raido_button = st.radio("Select patch", ["Phiếu giao hàng thu tiền", 
+raido_button = st.radio("Chọn loại phiếu", ["Phiếu giao hàng thu tiền", 
                                         "Phiếu xuất kho"])
 
 if raido_button == "Phiếu giao hàng thu tiền":
     patch_path = "kho_hiep_phuoc_delivery_note.png"
     pixel_coords = (1330, 1670, 1370, 1440)
+    
+    if st.checkbox("Chỉnh sửa ngày"):
+        date = st.date_input("Nhập ngày giao hàng cần sửa", format='DD-MM-YYYY')
+        day = f"{date.day:02d}"
+        month = f"{date.month:02d}"
+        year = str(date.year)
+
+    else:
+        date = None
+        
 elif raido_button == "Phiếu xuất kho":
     patch_path = "kho_hiep_phuoc_material_document.png"
     pixel_coords = (3570, 4100, 1030, 1100)
@@ -72,8 +34,57 @@ if uploaded_file:
     # Read the uploaded file into bytes
     pdf_bytes = uploaded_file.read()
     output_path = f"{uploaded_file.name}_updated.pdf"
+    
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    doc = insert_patch_all_pages(doc, patch_path, pixel_coords)
+    
+    if date:
+        font_path = "times.ttf"  # Đường dẫn đến font của bạn
 
-    doc = insert_patch_all_pages(pdf_bytes, output_path, patch_path, pixel_coords)
+        output_day = create_text(
+            text=day,
+            font_path=font_path,
+            font_size=15
+        )
+        print(output_day)
+
+        doc = insert_patch_all_pages(
+            doc=doc,
+            patch_path=output_day,
+            pixel_coords=(620, 680, 940, 999),
+            dpi=300,
+        )
+        os.remove(output_day)
+
+        output_month = create_text(
+            text=month,
+            font_path=font_path,
+            font_size=15
+        )
+
+        doc = insert_patch_all_pages(
+            doc=doc,
+            patch_path=output_month,
+            pixel_coords=(953, 1013, 940, 999),
+            dpi=300,
+        )
+        os.remove(output_month)
+
+        output_year = create_text(
+            text=year,
+            font_path=font_path,
+            font_size=14,
+            is_year = True
+        )
+
+        doc = insert_patch_all_pages(
+            doc = doc,
+            patch_path=output_year,
+            pixel_coords=(1225, 1375, 940, 999),
+            dpi=300,
+        )
+        os.remove(output_year)
+        
     pdf_bytes_output = io.BytesIO()
     doc.save(pdf_bytes_output)
     pdf_bytes_output.seek(0)
