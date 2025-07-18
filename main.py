@@ -27,6 +27,7 @@ if raido_button == "Phiếu giao hàng thu tiền":
 elif raido_button == "Phiếu xuất kho":
     patch_path = "kho_hiep_phuoc_material_document.png"
     pixel_coords = (3570, 4100, 1030, 1100)
+    date = None
 
 uploaded_file = st.file_uploader("Tải file pdf", type=["pdf"])
 
