@@ -1,7 +1,7 @@
 import io
 import os
 import fitz
-from datetime import datetime
+import datetime
 import streamlit as st
 from utils import insert_patch_all_pages, create_text
 
@@ -17,9 +17,26 @@ if raido_button == "Phiếu giao hàng thu tiền":
     
     if st.checkbox("Chỉnh sửa ngày"):
         date = st.date_input("Nhập ngày giao hàng cần sửa", format='DD-MM-YYYY')
-        day = f"{date.day:02d}"
-        month = f"{date.month:02d}"
-        year = str(date.year)
+        metadata = {
+            'day':{
+                'value': f"{date.day:02d}",
+                'pixel_records':  (620, 680, 940, 999),
+                'font_size': 15,
+                'is_year': False
+            },
+            'month': {
+                'value': f"{date.month:02d}",
+                'pixel_records': (953, 1013, 940, 999),
+                'font_size': 15,
+                'is_year': False
+            },
+            'year': {
+                'value': str(date.year),
+                'pixel_records': (1225, 1375, 940, 999),
+                'font_size': 14,
+                'is_year': True
+            }
+        }
 
     else:
         date = None
@@ -41,50 +58,25 @@ if uploaded_file:
     
     if date:
         font_path = "times.ttf"  # Đường dẫn đến font của bạn
+        print(type(date))
+        if date < datetime.date(2025, 7, 1):
+            print("Change Adress")
+        for key, value in metadata.items():
+            output = create_text(
+                text=value['value'],
+                font_path=font_path,
+                font_size=value['font_size'],
+                is_year=value['is_year']
+            )
 
-        output_day = create_text(
-            text=day,
-            font_path=font_path,
-            font_size=15
-        )
-        print(output_day)
+            doc = insert_patch_all_pages(
+                doc=doc,
+                patch_path=output,
+                pixel_coords=value['pixel_records'],
+                dpi=300,
+            )
+            os.remove(output)
 
-        doc = insert_patch_all_pages(
-            doc=doc,
-            patch_path=output_day,
-            pixel_coords=(620, 680, 940, 999),
-            dpi=300,
-        )
-        os.remove(output_day)
-
-        output_month = create_text(
-            text=month,
-            font_path=font_path,
-            font_size=15
-        )
-
-        doc = insert_patch_all_pages(
-            doc=doc,
-            patch_path=output_month,
-            pixel_coords=(953, 1013, 940, 999),
-            dpi=300,
-        )
-        os.remove(output_month)
-
-        output_year = create_text(
-            text=year,
-            font_path=font_path,
-            font_size=14,
-            is_year = True
-        )
-
-        doc = insert_patch_all_pages(
-            doc = doc,
-            patch_path=output_year,
-            pixel_coords=(1225, 1375, 940, 999),
-            dpi=300,
-        )
-        os.remove(output_year)
         
     pdf_bytes_output = io.BytesIO()
     doc.save(pdf_bytes_output)
