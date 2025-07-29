@@ -1,12 +1,15 @@
+import os
+import io
+import fitz
+import re
+import numpy as np
+import cv2
+import datetime
+import pdfplumber
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-import os
-import fitz
-import numpy as np
-import cv2
-from datetime import datetime
 
 
 def create_text(
@@ -23,7 +26,7 @@ def create_text(
     """
 
     font_name = os.path.splitext(os.path.basename(font_path))[0]
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     temp_pdf = f"/tmp/temp_text_{timestamp}.pdf"
     output = output_path or f"/tmp/text_output_{timestamp}.png"
 
@@ -116,3 +119,42 @@ def insert_patch_all_pages(doc, patch_path, pixel_coords, dpi=300, pages=None):
     
     # Return the modified document
     return doc
+
+def get_date(pdf_bytes, type):
+    """
+    Lấy số ngày từ text có dạng 'Ngày/Date: XX'
+    Return: số ngày dạng string, đã được pad zero (01, 02, etc.)
+    """
+    # Tìm số sau Ngày/Date:
+    
+    with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+        text = pdf.pages[0].extract_text()
+    
+    if type == 'thu_tien':
+        day_pattern = r"Ngày/Date:\s*(\d+)"
+        month_pattern = r"Tháng/Month:\s*(\d+)"
+        year_pattern = r"Năm/Year:\s*(\d+)"
+        
+        # Tìm các số
+        day = re.search(day_pattern, text)
+        month = re.search(month_pattern, text)
+        year = re.search(year_pattern, text)
+        
+        # Trích xuất các giá trị
+        day = int(day.group(1)) if day else None
+        month = int(month.group(1)) if month else None
+        year = int(year.group(1)) if year else None
+        if day and month and year:
+            date = datetime.date(year, month, day)
+        else:
+            date = None
+    elif type == 'xuat_kho':
+        date_pattern = r"Ngày xuất/\s*Posting date:\s*(\d{2})-(\d{2})-(\d{4})"
+        date = re.search(date_pattern, text)
+        if date:
+            day, month, year = date.groups()
+            date = datetime.date(int(year), int(month), int(day))
+        else:
+            date = None
+
+    return date

@@ -3,3 +3,4 @@ streamlit
 reportlab
 opencv-python-headless
 numpy
+pdfplumber
