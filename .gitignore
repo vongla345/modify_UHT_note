@@ -53,3 +53,7 @@ htmlcov/
 .tox/
 .nox/
 .co
+
+# Allow template folder even if it contains ignored files
+!template/
+!template/**
